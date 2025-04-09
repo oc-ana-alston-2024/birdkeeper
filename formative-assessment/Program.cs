@@ -1,5 +1,6 @@
 ﻿// I came up with the name _after_ I created the solution
 
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -11,11 +12,12 @@ namespace birdkeeper;
 interface INode
 {
     string Name { get; set; }
-    [JsonIgnore]
     TaxonomicGrouping? Parent { get; set; }
 
     // Dummy function to avoid errors as both classes will execute this differently
     public List<INode> Search(string query) { return new List<INode>(); }
+    
+    public List<INode> Children { get; set; }
     
     public string GetPath()
     {
@@ -24,6 +26,11 @@ interface INode
             return Parent.GetPath() + "/" + Name;
         }
         return Name;
+    }
+    
+    public string declareSelf()
+    {
+        return "INode";
     }
 }
 
@@ -38,7 +45,6 @@ class TaxonomicGrouping: INode
     }
     
     public string Name { get; set; }
-    [JsonIgnore]
     public TaxonomicGrouping? Parent { get; set; }
     public List<INode> Children { get; set; } = new();
 
@@ -104,6 +110,11 @@ class TaxonomicGrouping: INode
         
         return matches;
     }
+    
+    public string declareSelf()
+    {
+        return "Grouping";
+    }
 
     public override string ToString()
     {
@@ -124,9 +135,14 @@ class Bird : INode
     
     public string Name { get; set; }
     public string ScientificName { get; set; }
-    [JsonIgnore]
     public TaxonomicGrouping? Parent { get; set; }
     
+    public List<INode> Children
+    {
+        get { return null; }
+        set { }
+    }
+
     /// <summary>
     /// Gets the placement of the node in its tree
     /// </summary>
@@ -155,6 +171,11 @@ class Bird : INode
         }
         
         return matches;
+    }
+
+    public string declareSelf()
+    {
+        return "Bird";
     }
 
     public override string ToString()
@@ -212,42 +233,61 @@ class Program
         Bird tui = new Bird("Tui", "Novaeseelandiae");
         prosthemadera.AddChild(tui);
         
-        while (false)
+        while (true)
         {
+            mainMenu:
             Console.WriteLine("1. Add new bird\n2. Add new grouping\n3. Search\n4. Exit");
             Console.Write("Enter choice: ");
             string choice = Console.ReadLine();
             if (choice == "1")
             {
-                bool validGrouping = false;
-                while (validGrouping)
+                addBird:
+                Console.Write("Enter grouping: ");
+                string rawGrouping = Console.ReadLine();
+                List<INode> results = animalia.Search(rawGrouping);
+                // IEnumerable<INode> results = rawResults.Where<INode>(true);
+                if (results.Count == 0)
                 {
-                    Console.Write("Enter grouping: ");
-                    string grouping = Console.ReadLine();
-                    List<INode> results = animalia.Search(grouping);
-                    if (results.Count == 0)
+                    Console.WriteLine("Invalid grouping, try again!");  
+                    goto addBird;
+                }
+                
+                if (results.Count > 1)
+                {
+                    resultsClarification:
+                    for (int i = 0; i < results.Count; i++){
+                        Console.WriteLine($"{i}. " + results[i].GetPath());
+                    }
+                    Console.WriteLine("Please pick which grouping you want to add to.");
+                    string index = Console.ReadLine();
+                    try
+                    {
+                        int groupingIndex = int.Parse(index);
+                    }
+                    catch (FormatException)
                     {
                         Console.WriteLine("Invalid grouping, try again!");
+                        goto resultsClarification;
                     }
-                    else if (results.Count > 1)
-                    {
-                        Console.WriteLine("Please pick which grouping you want to add to.");
-                        int index = 0;
-                        foreach (INode node in results)
-                        {
-                            index += 1;
-                            Console.WriteLine(node.GetPath());
-                        }
-                    }
-            }
+                    
+                }
+                
+                
                 
                 Console.Write("Enter name: ");
                 string name = Console.ReadLine();
                 Console.Write("Enter scientific name: ");
                 string scientificName = Console.ReadLine();
             }
+            else if (choice == "4")
+            {
+                break;
+            }
+            else
+            {
+                Console.WriteLine("Invalid choice! Try again!");
+                goto mainMenu;
+            }
         }
-        Console.WriteLine(JsonSerializer.Serialize(aves));
-        Console.WriteLine(JsonSerializer.Serialize(animalia));
     }
 }
