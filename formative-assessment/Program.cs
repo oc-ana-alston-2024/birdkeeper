@@ -1,10 +1,5 @@
-﻿// I came up with the name _after_ I created the solution
-
-using System.Diagnostics;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-
-namespace birdkeeper;
+﻿// I came up with the name _after_ I created the solution, IT SHOULD HAVE BEEN BIRDKEEPER :sob:
+namespace formative_assessment;
 
 /// <summary>
 /// Interface for any of the nodes in the tree   
@@ -89,7 +84,7 @@ class TaxonomicGrouping: INode
     {
         List<INode> matches = new List<INode>();
 
-        if (Name.ToLower() == query.ToLower())
+        if (Name.ToLower() == query.ToLower().Trim())
         {
             matches.Add(this);
         }
@@ -148,7 +143,7 @@ class Bird : INode
     {
         List<INode> matches = new List<INode>();
 
-        if (Name.ToLower() == query.ToLower() || ScientificName.ToLower() == query.ToLower())
+        if (Name.ToLower() == query.ToLower().Trim() || ScientificName.ToLower() == query.ToLower().Trim())
         {
             matches.Add(this);
         }
@@ -164,12 +159,12 @@ class Bird : INode
 
 class Program
 {
-    static void Main(string[] args)
+    static void Main()
     {
-        /// <summary>
-        /// Prompts the user until an answer is given, makes the code smaller.
-        /// </summary>
-        /// <returns>The user's input</returns>
+        // Prompts the user until an answer is given, makes the code smaller.
+        // Okay turns out this doesn't really reprompt the user at all, since an empty string is NOT null.
+        // It's only looking for null to ensure that any user input is for SURE a string, because otherwise it is not robust.
+        // And I like the behavior of the error handling in the main loop anyway, so I'm certainly not going to change it to catch empty strings.
         string Prompt(string prompt)
         {
             while (true)
@@ -177,6 +172,29 @@ class Program
                 Console.Write(prompt);
                 string? response = Console.ReadLine();
                 if (response != null) return response;
+            }
+        }
+
+        // Just creates either a grouping or a bird, asking the user for which one before creating it. Means I have to copy code a lot less.
+        void CreateNode(TaxonomicGrouping parent)
+        {
+            while (true)
+            {
+                string classification = Prompt("Bird or Grouping? ");
+                if (classification.ToLower().Trim() == "bird")
+                {
+                    string name = Prompt("Enter name: ");
+                    string scientificName = Prompt("Enter scientific name: ");
+                    parent.AddChild(new Bird(name, scientificName));
+                    break;
+                }
+                if (classification.ToLower().Trim() == "grouping")
+                {
+                    string name = Prompt("Enter name: ");
+                    parent.AddChild(new TaxonomicGrouping(name));
+                    break;
+                }
+                Console.WriteLine("Not a valid answer, try again!");
             }
         }
         
@@ -233,18 +251,20 @@ class Program
             // don't end up 15 indents in, because honestly I like being able to use more than half of my IDE.
             // goto my beloved <3
             mainMenu:
-            Console.WriteLine("1. Add new bird\n2. Add new grouping\n3. Search\n4. Exit");
+            Console.WriteLine("1. Add new bird or grouping\n2. Search\n3. Exit");
             string choice = Prompt("Enter choice: ");
             if (choice == "1")
             {
-                addBird:
-                string rawGrouping = Prompt("Enter grouping: ");
+                addNode:
+                string rawGrouping = Prompt("Enter parent grouping: ");
                 List<INode> results = animalia.Search(rawGrouping);
+                // Heck yeah, I love that there's a RemoveAll function, I was looking through the methods for something like AddRange but for Remove
+                // with the plan of using Linq Where() at first, but this is so much more simple, predicate<t> for the win :tada:
                 results.RemoveAll(node => node.GetType() == typeof(Bird));
-                if (results.Count() == 0)
+                if (!(results.Any()))
                 {
                     Console.WriteLine("Invalid grouping, try again!");  
-                    goto addBird;
+                    goto addNode;
                 }
                 
                 if (results.Count() > 1)
@@ -254,13 +274,12 @@ class Program
                         Console.WriteLine($"{i}. " + results[i].GetPath());
                     }
 
-                    string index = Prompt("Please pick which grouping you want to add to.");
+                    string index = Prompt("Please pick which grouping you want to add to. ");
                     if (int.TryParse(index, out int groupingIndex))
                     {
+                        // Forgive me for my casting sins and assumptions
                         TaxonomicGrouping selectedGrouping = (TaxonomicGrouping) results[groupingIndex];
-                        string name = Prompt("Enter name: ");
-                        string scientificName = Prompt("Enter scientific name: ");
-                        selectedGrouping.AddChild(new Bird(name, scientificName));
+                        CreateNode(selectedGrouping);
                     }
                     else
                     {
@@ -269,27 +288,23 @@ class Program
                     }
                 }
 
-                if (results.Count() == 1)
+                else if (results.Count() == 1)
                 {
                     TaxonomicGrouping selectedGrouping = (TaxonomicGrouping) results[0];
-                    string name = Prompt("Enter name: ");
-                    string scientificName = Prompt("Enter scientific name: ");
-                    selectedGrouping.AddChild(new Bird(name, scientificName));
+                    CreateNode(selectedGrouping);
                 }
 
                 else
                 {
                     Console.WriteLine("Invalid grouping, try again!");
-                    goto addBird;
+                    goto addNode;
                 }
             }
-            else if (choice == "2") {}
-            else if (choice == "3")
+            else if (choice == "2")
             {
-                Console.Write("Enter search query: ");
-                string search = Console.ReadLine();
+                string search = Prompt("Enter search query: ");
                 List<INode> results = animalia.Search(search);
-                if (results.Count() == 0)
+                if (!(results.Any()))
                 {
                     Console.WriteLine("No results found!");
                     goto mainMenu;
@@ -300,7 +315,7 @@ class Program
                     Console.WriteLine(node.GetPath() + " - " + nodeType);
                 }
             }
-            else if (choice == "4")
+            else if (choice == "3")
             {
                 break;
             }
