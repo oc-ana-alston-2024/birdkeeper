@@ -16,21 +16,15 @@ interface INode
 
     // Dummy function to avoid errors as both classes will execute this differently
     public List<INode> Search(string query) { return new List<INode>(); }
-    
-    public List<INode> Children { get; set; }
-    
+
     public string GetPath()
     {
         if (Parent != null)
         {
             return Parent.GetPath() + "/" + Name;
         }
+
         return Name;
-    }
-    
-    public string declareSelf()
-    {
-        return "INode";
     }
 }
 
@@ -85,7 +79,7 @@ class TaxonomicGrouping: INode
         }
         return Name;
     }
-    
+
     /// <summary>
     /// Searches for a node with the name given.
     /// </summary>
@@ -95,7 +89,7 @@ class TaxonomicGrouping: INode
     {
         List<INode> matches = new List<INode>();
 
-        if (Name == query)
+        if (Name.ToLower() == query.ToLower())
         {
             matches.Add(this);
         }
@@ -107,13 +101,8 @@ class TaxonomicGrouping: INode
                 matches.AddRange(child.Search(query));
             }
         }
-        
+
         return matches;
-    }
-    
-    public string declareSelf()
-    {
-        return "Grouping";
     }
 
     public override string ToString()
@@ -136,12 +125,6 @@ class Bird : INode
     public string Name { get; set; }
     public string ScientificName { get; set; }
     public TaxonomicGrouping? Parent { get; set; }
-    
-    public List<INode> Children
-    {
-        get { return null; }
-        set { }
-    }
 
     /// <summary>
     /// Gets the placement of the node in its tree
@@ -165,17 +148,12 @@ class Bird : INode
     {
         List<INode> matches = new List<INode>();
 
-        if (Name == query || ScientificName == query)
+        if (Name.ToLower() == query.ToLower() || ScientificName.ToLower() == query.ToLower())
         {
             matches.Add(this);
         }
         
         return matches;
-    }
-
-    public string declareSelf()
-    {
-        return "Bird";
     }
 
     public override string ToString()
@@ -188,6 +166,21 @@ class Program
 {
     static void Main(string[] args)
     {
+        /// <summary>
+        /// Prompts the user until an answer is given, makes the code smaller.
+        /// </summary>
+        /// <returns>The user's input</returns>
+        string Prompt(string prompt)
+        {
+            while (true)
+            {
+                Console.Write(prompt);
+                string? response = Console.ReadLine();
+                if (response != null) return response;
+            }
+        }
+        
+        // GIANT BRICK OF HARDCODING
         TaxonomicGrouping animalia = new TaxonomicGrouping("Animalia");
         TaxonomicGrouping chordata = new TaxonomicGrouping("Chordata");
         TaxonomicGrouping aves = new TaxonomicGrouping("Aves");
@@ -233,51 +226,79 @@ class Program
         Bird tui = new Bird("Tui", "Novaeseelandiae");
         prosthemadera.AddChild(tui);
         
+        // Main loop
         while (true)
         {
+            // Here's where the non-linearity begins so that ironically my code is more readable and so that my menus
+            // don't end up 15 indents in, because honestly I like being able to use more than half of my IDE.
+            // goto my beloved <3
             mainMenu:
             Console.WriteLine("1. Add new bird\n2. Add new grouping\n3. Search\n4. Exit");
-            Console.Write("Enter choice: ");
-            string choice = Console.ReadLine();
+            string choice = Prompt("Enter choice: ");
             if (choice == "1")
             {
                 addBird:
-                Console.Write("Enter grouping: ");
-                string rawGrouping = Console.ReadLine();
+                string rawGrouping = Prompt("Enter grouping: ");
                 List<INode> results = animalia.Search(rawGrouping);
-                // IEnumerable<INode> results = rawResults.Where<INode>(true);
-                if (results.Count == 0)
+                results.RemoveAll(node => node.GetType() == typeof(Bird));
+                if (results.Count() == 0)
                 {
                     Console.WriteLine("Invalid grouping, try again!");  
                     goto addBird;
                 }
                 
-                if (results.Count > 1)
+                if (results.Count() > 1)
                 {
                     resultsClarification:
-                    for (int i = 0; i < results.Count; i++){
+                    for (int i = 0; i < results.Count(); i++){
                         Console.WriteLine($"{i}. " + results[i].GetPath());
                     }
-                    Console.WriteLine("Please pick which grouping you want to add to.");
-                    string index = Console.ReadLine();
-                    try
+
+                    string index = Prompt("Please pick which grouping you want to add to.");
+                    if (int.TryParse(index, out int groupingIndex))
                     {
-                        int groupingIndex = int.Parse(index);
+                        TaxonomicGrouping selectedGrouping = (TaxonomicGrouping) results[groupingIndex];
+                        string name = Prompt("Enter name: ");
+                        string scientificName = Prompt("Enter scientific name: ");
+                        selectedGrouping.AddChild(new Bird(name, scientificName));
                     }
-                    catch (FormatException)
+                    else
                     {
                         Console.WriteLine("Invalid grouping, try again!");
                         goto resultsClarification;
                     }
-                    
                 }
-                
-                
-                
-                Console.Write("Enter name: ");
-                string name = Console.ReadLine();
-                Console.Write("Enter scientific name: ");
-                string scientificName = Console.ReadLine();
+
+                if (results.Count() == 1)
+                {
+                    TaxonomicGrouping selectedGrouping = (TaxonomicGrouping) results[0];
+                    string name = Prompt("Enter name: ");
+                    string scientificName = Prompt("Enter scientific name: ");
+                    selectedGrouping.AddChild(new Bird(name, scientificName));
+                }
+
+                else
+                {
+                    Console.WriteLine("Invalid grouping, try again!");
+                    goto addBird;
+                }
+            }
+            else if (choice == "2") {}
+            else if (choice == "3")
+            {
+                Console.Write("Enter search query: ");
+                string search = Console.ReadLine();
+                List<INode> results = animalia.Search(search);
+                if (results.Count() == 0)
+                {
+                    Console.WriteLine("No results found!");
+                    goto mainMenu;
+                }
+                foreach (INode node in results)
+                {
+                    string nodeType = (node.GetType() == typeof(Bird)) ? "Bird" : "Taxonomic Grouping"; 
+                    Console.WriteLine(node.GetPath() + " - " + nodeType);
+                }
             }
             else if (choice == "4")
             {
